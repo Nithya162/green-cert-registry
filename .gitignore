@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Node / Hardhat
+node_modules/
+artifacts/
+cache/
+typechain-types/
+coverage/
+
+# Python
+venv/
+__pycache__/
+*.pyc
+
+# Data files (download separately, see data/README.md)
+data/*.csv
+
+# OS / editor
+.DS_Store
+.vscode/
