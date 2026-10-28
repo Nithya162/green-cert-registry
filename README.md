@@ -212,8 +212,8 @@ We use public solar generation data (power output, irradiance, temperature). See
 
 | Member | Role |
 |---|---|
-| Shri Nithya | Project Lead, Data Checker |
-| [Akash] | Smart Contract Developer |
-| [Nithya] | Integration Developer |
-| [Mithun] | Frontend Developer |
-| [Lakshmi] | Testing and Documentation |
+| Akash | Smart Contract Developer |
+| Lakshmi | Testing and Documentation |
+| Mithun | Frontend Developer (Ethers.js, MetaMask) |
+| Nithya | Integration Developer (Web3.py connector) |
+| Shri Nithya | Data Checker (Python, plausibility rules, hashing) |
