@@ -2,7 +2,7 @@
 
 **CSE 540: Engineering Blockchain Applications | Project 3 (Open Innovation)**
 
-**Team [Team Name]:** Shri Nithya, [Akash], [Nithya], [Mithun], [Lakshmi]
+**Team G3:** Shri Nithya, Akash Radhakrishnan Jayasankar, Nithyashree Ravikumar, Mithun Menon, Lakshmi Chandana Koyya 
 
 > Status: **Draft (Smart Contract Design milestone).** Contract interfaces, function signatures, and component outlines are complete. Function bodies marked `TODO` will be implemented in the next phase.
 
