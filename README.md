@@ -153,8 +153,8 @@ Every action emits an **event**, which forms the public audit trail of each cert
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/Nithya162/green-cert-registry.gitgreen-energy-certificates.git
-cd green-energy-certificates
+git clone https://github.com/Nithya162/green-cert-registry.git
+cd green-cert-registry
 
 # 2. Install smart contract dependencies
 npm install
