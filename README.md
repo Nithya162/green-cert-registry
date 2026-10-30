@@ -20,7 +20,7 @@ Today, two problems weaken trust in these certificates:
 Our system solves both:
 
 - A **blockchain registry** gives every certificate a unique ID and a permanent history (issued, transferred, retired). A retired certificate can never be transferred or claimed again.
-- An **off-chain Data Checker** validates generation data **before** certificates are created and flags readings that do not make sense, such as solar power at night or output higher than the panels can produce.
+- An **off-chain Checker** validates generation data **before** certificates are created and flags readings that do not make sense, such as solar power at night or output higher than the panels can produce.
 
 ### Stakeholders and Access Control
 
