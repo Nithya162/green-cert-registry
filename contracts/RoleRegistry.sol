@@ -63,7 +63,7 @@ contract RoleRegistry is AccessControl, IRoleRegistry {
     function registerBuyer(address buyer, string calldata name)
         external override onlyRole(REGULATOR_ROLE)
     {
-        require(buyer != address(0), "Invalid address");
+        require(buyer!=address(0), "Invalid address");
         require(!hasRole(BUYER_ROLE, buyer), "Already a buyer");
 
         // TODO: save buyer name, grant BUYER_ROLE, emit BuyerRegistered
