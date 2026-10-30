@@ -213,7 +213,7 @@ We use public solar generation data (power output, irradiance, temperature). See
 | Member | Role |
 |---|---|
 | Akash | Smart Contract Developer |
-| Lakshmi | Testing and Documentation |
+| Chandana | Testing and Documentation |
 | Mithun | Frontend Developer (Ethers.js, MetaMask) |
 | Nithya | Integration Developer (Web3.py connector) |
 | Shri Nithya | Data Checker (Python, plausibility rules, hashing) |
