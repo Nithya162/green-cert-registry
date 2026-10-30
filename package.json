@@ -1,5 +1,5 @@
 {
-  "name": "green-energy-certificates",
+  "name": "green-cert-registry",
   "version": "0.1.0",
   "description": "Blockchain-based green energy certificates with data validation (CSE 540 Project 3)",
   "scripts": {
