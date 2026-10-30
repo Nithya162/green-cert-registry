@@ -52,7 +52,7 @@ class CheckResult:
 # ----------------------------------------------------------------------
 
 def check_night_generation(reading: Reading) -> Optional[str]:
-    """Flags power reported when there is no sunlight (e.g. 2 am)."""
+    """Flags power reported when there is no sunlight (e.g. 2 am). """
     # TODO: if irradiance < NIGHT_IRRADIANCE_LIMIT and energy > NIGHT_POWER_LIMIT_KW -> return reason
     return None
 
@@ -104,7 +104,7 @@ def submit_decision(reading_id: int, result: CheckResult) -> None:
     raise NotImplementedError
 
 
-def inject_fake_readings(rows: List[Reading], fraction: float = 0.05) -> List[Reading]:
+def inject_fake_readings(rows: List[Reading],fraction: float = 0.05) -> List[Reading]:
     """
     Evaluation helper: changes a small share of real readings into fake ones
     (power at night, doubled output, sudden spikes) to measure how many the
