@@ -4,7 +4,7 @@
 
 **Team G3:** Shri Nithya, Akash Radhakrishnan Jayasankar, Nithyashree Ravikumar, Mithun Menon, Lakshmi Chandana Koyya 
 
-> Status: **Draft (Smart Contract Design milestone).** Contract interfaces, function signatures, and component outlines are complete. Function bodies marked `TODO` will be implemented in the next phase.
+> Status: **Interim Demo milestone.** Both smart contracts are implemented and the full certificate flow runs on a local blockchain. The Data Checker's four plausibility rules are implemented. In progress: connecting the Data Checker to the contracts with Web3.py, the web interface, and automated tests.
 
 ---
 
@@ -82,7 +82,8 @@ green-cert-registry/
 │   ├── checker.py                     # Plausibility rules and oracle logic
 │   └── requirements.txt
 ├── scripts/
-│   └── deploy.js                      # Deployment script (draft)
+│   ├── deploy.js                      # Deployment script (draft)
+│   └── demo.js                        # Full end-to-end demo
 ├── test/                              # Contract tests (next milestone)
 ├── frontend/                          # Web interface (next milestone)
 ├── data/                              # Dataset instructions
@@ -175,7 +176,32 @@ cp .env.example .env            # then fill in your own values (never commit .en
 
 ---
 
-## 6. Usage and Deployment (draft)
+## 6. Running the Demo
+
+**Smart contract demo** (runs the full story on a local Hardhat blockchain, no wallet or test ETH needed):
+```bash
+npm run demo
+```
+It deploys both contracts, registers a producer and a buyer, submits and approves a reading, issues certificates, transfers and retires one, shows six cheating attempts being blocked, and flags and rejects a suspicious reading.
+
+**Data Checker demo** (validates sample readings and flags fake ones):
+```bash
+python data-checker/checker.py
+```
+
+### Implementation Status
+
+| Component | Status |
+|---|---|
+| RoleRegistry (registration, suspension, Data Checker role) | Done |
+| CertificateRegistry (readings, issuing, transfer, retire, flag review) | Done |
+| Demo script (`scripts/demo.js`) | Done |
+| Data Checker plausibility rules | Done |
+| Data Checker connected to contracts (Web3.py) | In progress |
+| Web interface | In progress |
+| Automated tests and evaluation (gas cost, detection rate) | Planned |
+
+## 7. Usage and Deployment (draft)
 
 > These steps describe the intended workflow. Details will be finalised in the implementation phase.
 
@@ -202,13 +228,13 @@ npx hardhat run scripts/deploy.js --network sepolia
 
 ---
 
-## 7. Dataset
+## 8. Dataset
 
 We use public solar generation data (power output, irradiance, temperature). See [`data/README.md`](data/README.md) for download instructions.
 
 ---
 
-## 8. Team
+## 9. Team
 
 | Member | Role |
 |---|---|
