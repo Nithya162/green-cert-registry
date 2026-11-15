@@ -7,9 +7,7 @@ import "./interfaces/IRoleRegistry.sol";
 /**
  * @title RoleRegistry
  * @notice Stores the role of every account and enforces who can manage members.
- * @dev DRAFT. Function signatures and access rules are final for this milestone.
- *      Bodies marked TODO will be completed in the implementation phase.
- *      Built on OpenZeppelin AccessControl so role checks are audited and standard.
+ * @dev Built on OpenZeppelin AccessControl so role checks are audited and standard.
  */
 contract RoleRegistry is AccessControl, IRoleRegistry {
     // Role identifiers (hashes are the standard OpenZeppelin pattern)
@@ -53,10 +51,21 @@ contract RoleRegistry is AccessControl, IRoleRegistry {
         require(_producers[producer].status == ProducerStatus.None, "Already registered");
         require(capacityKW > 0, "Capacity must be positive");
 
-        // TODO: store Producer struct with status Active and registeredAt = block.timestamp
-        // TODO: grant PRODUCER_ROLE
-        // TODO: emit ProducerRegistered
-        name; meterId; location; // silence unused warnings in draft
+        // Save the farm's details and mark it Active
+        _producers[producer] = Producer({
+            name: name,
+            meterId: meterId,
+            location: location,
+            capacityKW: capacityKW,
+            status: ProducerStatus.Active,
+            registeredAt: block.timestamp
+        });
+
+        // Give the farm the PRODUCER role so it can submit readings
+        _grantRole(PRODUCER_ROLE, producer);
+
+        // Record the registration in the public audit trail
+        emit ProducerRegistered(producer, name, meterId, capacityKW);
     }
 
     /// @inheritdoc IRoleRegistry
@@ -66,8 +75,11 @@ contract RoleRegistry is AccessControl, IRoleRegistry {
         require(buyer!=address(0), "Invalid address");
         require(!hasRole(BUYER_ROLE, buyer), "Already a buyer");
 
-        // TODO: save buyer name, grant BUYER_ROLE, emit BuyerRegistered
-        name;
+        // Save the company name and give it the BUYER role
+        _buyerNames[buyer] = name;
+        _grantRole(BUYER_ROLE, buyer);
+
+        emit BuyerRegistered(buyer, name);
     }
 
     /// @inheritdoc IRoleRegistry
@@ -76,25 +88,37 @@ contract RoleRegistry is AccessControl, IRoleRegistry {
     {
         require(_producers[producer].status == ProducerStatus.Active, "Producer not active");
 
-        // TODO: set status to Suspended (role is kept so history stays linked)
-        // TODO: emit ProducerSuspended(producer, reason)
-        reason;
+        // Block new readings. The role is kept so old certificates stay linked to this farm.
+        _producers[producer].status = ProducerStatus.Suspended;
+
+        emit ProducerSuspended(producer, reason);
     }
 
     /// @inheritdoc IRoleRegistry
     function reinstateProducer(address producer) external override onlyRole(REGULATOR_ROLE) {
         require(_producers[producer].status == ProducerStatus.Suspended, "Producer not suspended");
 
-        // TODO: set status back to Active, emit ProducerReinstated
+        // Allow the farm to submit readings again
+        _producers[producer].status = ProducerStatus.Active;
+
+        emit ProducerReinstated(producer);
     }
 
     /// @inheritdoc IRoleRegistry
     function setDataChecker(address checker) external override onlyRole(REGULATOR_ROLE) {
         require(checker != address(0), "Invalid address");
 
-        // TODO: revoke CHECKER_ROLE from the old dataChecker (if any)
-        // TODO: grant CHECKER_ROLE to the new checker and update dataChecker
-        // TODO: emit DataCheckerUpdated(old, checker)
+        address oldChecker = dataChecker;
+
+        // Only one Data Checker at a time: remove the role from the old account first
+        if (oldChecker != address(0)) {
+            _revokeRole(CHECKER_ROLE, oldChecker);
+        }
+
+        _grantRole(CHECKER_ROLE, checker);
+        dataChecker = checker;
+
+        emit DataCheckerUpdated(oldChecker, checker);
     }
 
     // ------------------------------------------------------------------
