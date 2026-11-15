@@ -9,9 +9,7 @@ import "./interfaces/IRoleRegistry.sol";
  * @notice Issues, transfers and retires green energy certificates.
  *         Every certificate has a unique ID and a full on-chain history,
  *         so the same certificate can never be claimed twice.
- * @dev DRAFT. Signatures, storage layout and access rules are defined.
- *      Bodies marked TODO will be completed in the implementation phase.
- *      All permission checks are delegated to RoleRegistry.
+ * @dev All permission checks are delegated to RoleRegistry.
  */
 contract CertificateRegistry is ICertificateRegistry {
     /// @notice Energy covered by one certificate (1 MWh).
@@ -56,6 +54,12 @@ contract CertificateRegistry is ICertificateRegistry {
         _;
     }
 
+    /// @dev Unused storage slots look like a Pending reading, so check the ID is real.
+    modifier readingExists(uint256 readingId) {
+        require(readingId > 0 && readingId <= _readingCount, "Reading does not exist");
+        _;
+    }
+
     modifier onlyCertificateOwner(uint256 certificateId) {
         require(_certificates[certificateId].owner == msg.sender, "Not the certificate owner");
         _;
@@ -81,10 +85,23 @@ contract CertificateRegistry is ICertificateRegistry {
         require(energyKWh > 0, "Energy must be positive");
         require(!_usedDataHash[dataHash], "Reading already submitted");
 
-        // TODO: mark dataHash as used
-        // TODO: create Reading with status Pending, producer = msg.sender
-        // TODO: emit ReadingSubmitted
-        readingId = 0; // placeholder until implemented
+        // Remember this fingerprint so the same data can never be submitted again
+        _usedDataHash[dataHash] = true;
+
+        // Create the reading. It waits as Pending until the Data Checker decides.
+        readingId = ++_readingCount;
+        _readings[readingId] = Reading({
+            id: readingId,
+            producer: msg.sender,
+            periodStart: periodStart,
+            periodEnd: periodEnd,
+            energyKWh: energyKWh,
+            dataHash: dataHash,
+            status: ReadingStatus.Pending,
+            flagReason: ""
+        });
+
+        emit ReadingSubmitted(readingId, msg.sender, energyKWh, dataHash);
     }
 
     // ------------------------------------------------------------------
@@ -92,20 +109,25 @@ contract CertificateRegistry is ICertificateRegistry {
     // ------------------------------------------------------------------
 
     /// @inheritdoc ICertificateRegistry
-    function approveReading(uint256 readingId) external override onlyDataChecker {
+    function approveReading(uint256 readingId) external override onlyDataChecker readingExists(readingId) {
         require(_readings[readingId].status == ReadingStatus.Pending, "Reading not pending");
 
-        // TODO: set status Approved
-        // TODO: call _issueCertificates(readingId)
-        // TODO: emit ReadingApproved
+        _readings[readingId].status = ReadingStatus.Approved;
+
+        uint256 issued = _issueCertificates(readingId);
+
+        emit ReadingApproved(readingId, issued);
     }
 
     /// @inheritdoc ICertificateRegistry
-    function flagReading(uint256 readingId, string calldata reason) external override onlyDataChecker {
+    function flagReading(uint256 readingId, string calldata reason) external override onlyDataChecker readingExists(readingId) {
         require(_readings[readingId].status == ReadingStatus.Pending, "Reading not pending");
 
-        // TODO: set status Flagged, store reason, emit ReadingFlagged
-        reason;
+        // No certificates are created. The regulator will review this reading.
+        _readings[readingId].status = ReadingStatus.Flagged;
+        _readings[readingId].flagReason = reason;
+
+        emit ReadingFlagged(readingId, reason);
     }
 
     // ------------------------------------------------------------------
@@ -113,13 +135,19 @@ contract CertificateRegistry is ICertificateRegistry {
     // ------------------------------------------------------------------
 
     /// @inheritdoc ICertificateRegistry
-    function reviewFlaggedReading(uint256 readingId, bool approve) external override onlyRegulator {
+    function reviewFlaggedReading(uint256 readingId, bool approve) external override onlyRegulator readingExists(readingId) {
         require(_readings[readingId].status == ReadingStatus.Flagged, "Reading not flagged");
 
-        // TODO: if approve -> status Approved and _issueCertificates(readingId)
-        //       else       -> status Rejected
-        // TODO: emit FlaggedReadingReviewed
-        approve;
+        if (approve) {
+            // Regulator decided the reading is genuine after all
+            _readings[readingId].status = ReadingStatus.Approved;
+            _issueCertificates(readingId);
+        } else {
+            // Regulator confirmed it was fake: no certificates, ever
+            _readings[readingId].status = ReadingStatus.Rejected;
+        }
+
+        emit FlaggedReadingReviewed(readingId, approve);
     }
 
     // ------------------------------------------------------------------
@@ -133,8 +161,12 @@ contract CertificateRegistry is ICertificateRegistry {
         require(_certificates[certificateId].status == CertificateStatus.Active, "Certificate already retired");
         require(roles.isBuyer(to), "Receiver is not a registered buyer");
 
-        // TODO: move ID from sender's list to receiver's list, update owner
-        // TODO: emit CertificateTransferred
+        // Change the owner and move the certificate between the two owners' lists
+        _certificates[certificateId].owner = to;
+        _removeFromOwner(msg.sender, certificateId);
+        _certificatesOf[to].push(certificateId);
+
+        emit CertificateTransferred(certificateId, msg.sender, to);
     }
 
     /// @inheritdoc ICertificateRegistry
@@ -143,9 +175,14 @@ contract CertificateRegistry is ICertificateRegistry {
     {
         require(_certificates[certificateId].status == CertificateStatus.Active, "Certificate already retired");
 
-        // TODO: set status Retired, retiredBy = msg.sender, store note
-        // TODO: emit CertificateRetired
-        note;
+        // Lock the certificate forever. This is what stops double counting:
+        // every transfer and retire call checks that the status is still Active.
+        Certificate storage cert = _certificates[certificateId];
+        cert.status = CertificateStatus.Retired;
+        cert.retiredBy = msg.sender;
+        cert.retirementNote = note;
+
+        emit CertificateRetired(certificateId, msg.sender, note);
     }
 
     // ------------------------------------------------------------------
@@ -183,8 +220,46 @@ contract CertificateRegistry is ICertificateRegistry {
      *      Example: balance 300 kWh + new reading 2500 kWh = 2800 kWh
      *               -> 2 certificates issued, 800 kWh carried forward.
      */
-    function _issueCertificates(uint256 readingId) internal {
-        // TODO: implement as described above, emitting CertificateIssued per certificate
-        readingId;
+    function _issueCertificates(uint256 readingId) internal returns (uint256 issued) {
+        Reading storage reading = _readings[readingId];
+        address producer = reading.producer;
+
+        // Add the new energy to whatever was left over from earlier readings
+        uint256 balance = _pendingEnergyKWh[producer] + reading.energyKWh;
+
+        // One certificate for every full 1000 kWh
+        issued = balance / KWH_PER_CERTIFICATE;
+
+        // Keep the remainder (less than 1000 kWh) for the next reading
+        _pendingEnergyKWh[producer] = balance % KWH_PER_CERTIFICATE;
+
+        for (uint256 i = 0; i < issued; i++) {
+            uint256 certId = ++_certificateCount;
+            _certificates[certId] = Certificate({
+                id: certId,
+                readingId: readingId,
+                producer: producer,
+                owner: producer,          // the farm owns its certificates first
+                issuedAt: block.timestamp,
+                status: CertificateStatus.Active,
+                retiredBy: address(0),
+                retirementNote: ""
+            });
+            _certificatesOf[producer].push(certId);
+
+            emit CertificateIssued(certId, readingId, producer);
+        }
+    }
+
+    /// @dev Removes a certificate ID from an owner's list (swap with last, then pop).
+    function _removeFromOwner(address owner, uint256 certificateId) internal {
+        uint256[] storage list = _certificatesOf[owner];
+        for (uint256 i = 0; i < list.length; i++) {
+            if (list[i] == certificateId) {
+                list[i] = list[list.length - 1];
+                list.pop();
+                return;
+            }
+        }
     }
 }
